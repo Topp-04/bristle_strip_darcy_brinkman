@@ -1,0 +1,25 @@
+FoamFile
+{
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      fvModels;
+}
+
+// Darcy-Brinkman strip:  K = 1.006000e-04 m^2,  Da = K/D^2 = 1.006000e+00
+stripDarcy
+{
+    type            semiImplicitSource;
+    selectionMode   cellZone;      // OpenFOAM <= 11 keyword
+    select          cellZone;      // newer keyword (unused entries are ignored)
+    cellZone        strip;
+    volumeMode      specific;
+    sources
+    {
+        U
+        {
+            explicit    (0 0 0);
+            implicit    -6.30467197e+00;   // -nu/K [1/s]
+        }
+    }
+}

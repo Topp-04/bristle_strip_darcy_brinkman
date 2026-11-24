@@ -1,0 +1,36 @@
+#!/bin/bash
+# Porous-strip case.  ./Allrun   (NP=4 ./Allrun for 4 MPI ranks, NP=1 for serial; default 8)
+# 1. mesh (blockMesh) and split it for MPI (decomposePar)
+# 2. for every Darcy number in Da_sequence: run foamRun from the previous solution,
+#    then measure the strip drag with strip_cf.py (more iterations until the drag stops changing)
+cd "${0%/*}" || exit 1
+NP=${NP:-8}
+command -v foamRun >/dev/null || { echo "load OpenFOAM first, e.g. 'module load openfoam/14'"; exit 1; }
+./Allclean
+sed -i "s/^numberOfSubdomains .*/numberOfSubdomains $NP;/" system/decomposeParDict
+blockMesh > log.blockMesh 2>&1 || { echo "blockMesh failed, see log.blockMesh"; exit 1; }
+[ "$NP" -gt 1 ] && decomposePar > log.decomposePar 2>&1
+
+END=0
+run () {                                        # run $1 more iterations
+    END=$((END + $1))
+    sed -i "s/^endTime .*/endTime         $END;/" system/controlDict
+    cp system/fvModels fvModels.used.$END       # remember which K this run used
+    echo "  running to iteration $END"
+    if [ "$NP" -gt 1 ]; then
+        mpirun -np $NP foamRun -parallel > log.foamRun.$END 2>&1 || exit 1
+        for T in $(ls processor0 | grep -E '^[0-9]+$' | sort -n | tail -2); do reconstructPar -time $T > log.reconstruct 2>&1; done
+    else
+        foamRun > log.foamRun.$END 2>&1 || exit 1
+    fi
+}
+
+first=1
+for DA in $(grep -v '^#' Da_sequence); do
+    if [ $first -eq 1 ]; then run 4000; first=0
+    else python3 ../../../scripts/strip_cf.py --set-da $DA; run 1500; fi
+    for k in 1 2 3 4 5; do                                    # until the drag stops changing
+        python3 ../../../scripts/strip_cf.py && break; run 1500
+    done
+done
+echo "done: results in calib_log.csv and CF_x_strip.csv"

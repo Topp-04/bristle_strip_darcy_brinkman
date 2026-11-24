@@ -1,0 +1,4 @@
+#!/bin/bash
+# Remove all generated simulation output from every case (input files are kept).
+cd "${0%/*}" || exit 1
+for C in validation/plate_ReL120 cases/strip/*; do "$C"/Allclean; done

@@ -1,0 +1,11 @@
+#!/bin/bash
+# Run every case one after another on this machine (from the repository root).
+#   ./Allrun                 all strip cases + validation, NP=8 ranks each
+#   NP=4 ./Allrun            fewer ranks
+# On a Slurm cluster submit each case with slurm/run_case.job instead.
+cd "${0%/*}" || exit 1
+for C in validation/plate_ReL120 cases/strip/*; do
+    echo "=== $C"
+    "$C"/Allrun || echo "!!! $C failed"
+done
+python3 scripts/plot_report_figures.py

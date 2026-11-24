@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH -J case
+#SBATCH -p batch
+#SBATCH -N 1
+#SBATCH -n 8
+#SBATCH -t 24:00:00
+#SBATCH -o slurm-%x-%j.out
+# Run one case on a Slurm cluster (from the repository root):
+#   sbatch -J GD2_Re0.4 slurm/run_case.job cases/strip/GD2_Re0.4
+#   sbatch -J plate     slurm/run_case.job validation/plate_ReL120
+module load openfoam/14            # adapt to your cluster
+export NP=${SLURM_NTASKS:-8}
+"$1"/Allrun ${2:-}

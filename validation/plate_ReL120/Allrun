@@ -1,0 +1,17 @@
+#!/bin/bash
+# Solid plate at Re_L = 120 (validation against Janour 1951).   ./Allrun   (NP as for the strip cases)
+# Runs 6000 iterations, then 2000 more at a time until the drag stops changing.
+cd "${0%/*}" || exit 1
+NP=${NP:-8}
+command -v foamRun >/dev/null || { echo "load OpenFOAM first, e.g. 'module load openfoam/14'"; exit 1; }
+./Allclean
+sed -i "s/^numberOfSubdomains .*/numberOfSubdomains $NP;/" system/decomposeParDict
+blockMesh > log.blockMesh 2>&1 || { echo "blockMesh failed, see log.blockMesh"; exit 1; }
+[ "$NP" -gt 1 ] && decomposePar > log.decomposePar 2>&1
+for END in 6000 8000 10000 12000; do
+    sed -i "s/^endTime .*/endTime         $END;/" system/controlDict
+    echo "  running to iteration $END"
+    if [ "$NP" -gt 1 ]; then mpirun -np $NP foamRun -parallel > log.foamRun.$END 2>&1 || exit 1
+    else foamRun > log.foamRun.$END 2>&1 || exit 1; fi
+    python3 ../../scripts/plate_cd.py && break
+done
